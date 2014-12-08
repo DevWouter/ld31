@@ -10,8 +10,8 @@ function Sector.new(game)
     , x = 0
     , y = SECTOR_Y
     , w = SECTOR_WIDTH
-    , h = 10
-    , humans = 0
+    , h = 22
+    , humans = 1
     , max_humans = 1
     , game = game
   }
@@ -20,7 +20,9 @@ function Sector.new(game)
 end
 
 function Sector:draw()
-  draw_quad(self.x, self.y, self.w, self.h, {120,120,120}, {240, 240, 240})
+  love.graphics.draw(Images.sector, self.x, self.y)
+
+  -- draw_quad(self.x, self.y, self.w, self.h, {120,120,120}, {240, 240, 240})
   if self.game.debug then
     local area = {x = self.x, y = self.y, w = self.w, h = self.h}
     local health_text = 
@@ -61,7 +63,7 @@ function Sector:update(dt, buildings)
   if self.humans > 0 then
     local health_increase = (self.humans / #to_build) * dt
     for _,v in pairs(to_build) do
-      v.health = v.health + health_increase
+      v.health = v.health + health_increase + 1
       if v.health > v.max_health then
         v.health = v.max_health
       end

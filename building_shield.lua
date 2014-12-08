@@ -10,7 +10,8 @@ function ShieldBuilding:on_create()
   self.shields_fired = 0
   self.energy = 10
   self.max_energy = 100
-
+  self.shield_spread = SpreadConfiguration.building_shields
+  self.time_alive = 0
 end
 
 function ShieldBuilding:get_shield_drain()
@@ -31,19 +32,13 @@ function ShieldBuilding:update(dt, sector, bullet_list, targets, shield_list)
     return
   end
 
+  self.time_alive = self.time_alive + dt
+
   local recovery_speed = self:get_shield_recovery() * dt
   self.shield_gen_timeout = self.shield_gen_timeout - recovery_speed
   if self.shield_gen_timeout < 0 and self.energy > self:get_shield_drain() then
     -- Generate a shield
-    local shield_plate = ShieldPlate.new()
-    shield_plate.x = (self.x + self.w / 2)
-    shield_plate.y = (self.y)
-    shield_plate.vel_x = math.sin(self.shields_fired) * 20
-    shield_plate.vel_y = shield_plate.vel_y  - math.cos(self.shields_fired) 
-    table.insert(shield_list, shield_plate)
-    self.shield_gen_timeout = 0.05
-    self.shields_fired = self.shields_fired + 1
-    self.energy = self.energy - self:get_shield_drain()
+    generate_shield(self, shield_list)
   end
 
 end
@@ -51,7 +46,15 @@ end
 function ShieldBuilding:draw()
   local fill_color = {120, 120, 120}
   local line_color = {255, 0, 0}  
-  draw_quad( self.x, self.y, self.w, self.h, line_color, fill_color)
+  local current_frame = Sprites.shield:get_frame(self.time_alive)
+
+  love.graphics.push()
+  love.graphics.setColor({255,255,255})
+  love.graphics.translate(self.x, self.y)
+  love.graphics.draw(current_frame.image)
+  love.graphics.pop()
+
+
   if self.health < self.max_health then
     love.graphics.setColor({0,255,255})
     love.graphics.printf(self:health_str(), self.x, self.y, self.w, "center")

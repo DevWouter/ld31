@@ -2,7 +2,7 @@
 require 'game_conf'
 
 function love.conf(t)
-    local allow_hd = false
+    local allow_hd = true
     local is_osx = true
     local window_width = 683               -- The window width (number)
     local window_height = 384              -- The window height (number)
@@ -21,7 +21,7 @@ function love.conf(t)
     t.version = "0.9.1"                -- The LÖVE version this game was made for (string)
     t.console = false                  -- Attach a console (boolean, Windows only)
 
-    t.window.title = "ld31"        -- The window title (string)
+    t.window.title = "WideScreenDefender"        -- The window title (string)
     t.window.icon = nil                -- Filepath to an image to use as the window's icon (string)
     t.window.width = window_width               -- The window width (number)
     t.window.height = window_height              -- The window height (number)

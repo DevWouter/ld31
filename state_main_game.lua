@@ -3,12 +3,16 @@ require("game_state")
 require('building')
 require('shield_plate')
 
+POWERUP_DELAY = 5
+
 MainGameState = GameState.new_type()
 -- Set the default properties
 
 function MainGameState:on_start(game)
   self.game = game
+  love.graphics.setDefaultFilter("nearest","nearest", 0)
   self.fnt_countdown = love.graphics.newFont("X-SCALE_.TTF", 25)
+  self.fnt_gui = love.graphics.newFont("X-SCALE_.TTF", 16)
   self.level_index = 1
   self.current_level = load_level(game, self.level_index)
   self.enemies = {}
@@ -18,8 +22,10 @@ function MainGameState:on_start(game)
   self.enemy_bullets = {}
   self.player_bullets = {}
   self.player_shields = {}
+  self.powerups = {}
   self.player = Player.new(self.player_bullets)
   self.camera = Camera.new()
+  self.powerup_delay = POWERUP_DELAY
   self.wave_countdown = -1
 
   local center_x = #self.current_level.sectors * SECTOR_WIDTH / 2
@@ -50,9 +56,31 @@ function MainGameState:on_start(game)
   table.insert(self.right_gui, self.gui_rockets)
   table.insert(self.right_gui, self.gui_laser)
   table.insert(self.right_gui, self.gui_blackhole)
-  table.insert(self.right_gui, self.gui_buildings)
-  table.insert(self.right_gui, self.gui_build_repair)
-  table.insert(self.right_gui, self.gui_build_shield)
+  -- table.insert(self.right_gui, self.gui_buildings)
+  -- table.insert(self.right_gui, self.gui_build_repair)
+  -- table.insert(self.right_gui, self.gui_build_shield)
+
+  -- HACKS
+  -- Use laser only
+  local hacks = {}
+  hacks.enable_laser = true
+  hacks.enable_blackhole = false
+  hacks.disable_cannon = false
+
+  if hacks.disable_cannon then
+    self.player.weapons.cannons.is_active = false
+  end
+
+  if hacks.enable_laser then
+    self.player.weapons.laser.health = self.player.weapons.laser.max_health
+    self.player.weapons.laser.is_active = true
+  end
+
+  if hacks.enable_blackhole then
+    self.player.weapons.blackhole.health = self.player.weapons.blackhole.max_health
+    self.player.weapons.blackhole.is_active = true
+  end
+  -- 
 end
 
 function create_build_button(y, building_type, game_state)
@@ -77,8 +105,10 @@ end
 function MainGameState:load_next_level()
   self.enemy_bullets = {}
   self.player_bullets = {}
+  self.player_shields = {}
   self.buildings = {}
   self.level_index = self.level_index + 1
+  self.player.humans = 1 -- Reset the human count
   local next_level = load_level(self.game, self.level_index)
   if next_level == nil then
     self.game:change_state('game_complete')
@@ -124,41 +154,18 @@ function MainGameState:update_bullets_(dt, bullets, targets, sectors, buildings,
   local remove_bullet_table = {}
   for i,v in pairs(bullets) do
     v:update(dt, targets)
+    
+    local remove = false
 
     -- Check if the bullets overlap with one of the targets
-    local remove = false
-    for _,target in pairs(targets) do
-      if math.test_box_intersection(v, target) then
-        v:apply_damage(target)
-        remove = v:should_remove()
+    local targets_collection = {targets, sectors, shields, buildings}
+    for _,collection in pairs(targets_collection) do
+      for _,target in pairs(collection) do
+        v:test_hit(target, dt)
       end
     end
 
-    for _,target in pairs(sectors) do
-      if math.test_box_intersection(v, target) then
-        v:apply_damage(target)
-        remove = v:should_remove()
-      end
-    end
-
-    for _,target in pairs(shields) do
-      if math.test_box_intersection(v, target) then
-        v:apply_damage(target)
-        remove = v:should_remove()
-      end
-    end
-
-    -- Damage buildings
-    for _,target in pairs(buildings) do
-      if math.test_box_intersection(v, target) then
-        v:apply_damage(target)
-        remove = v:should_remove()
-      end
-    end
-
-    if(v.life_time < 0) then
-      remove = true
-    end
+    remove = v:should_remove()
 
     if remove then
       table.insert(remove_bullet_table, i)
@@ -188,6 +195,7 @@ function MainGameState:update_player(dt)
   local move_left = love.keyboard.isDown("a")
   local move_right = love.keyboard.isDown("d")
   local is_firing = love.keyboard.isDown(" ")
+  local enable_shields = love.keyboard.isDown("s")
 
   if move_left then
     self.player:set_move(-dt)
@@ -197,9 +205,11 @@ function MainGameState:update_player(dt)
     self.player:set_move(0)
   end
 
+  self.player.enable_shields = enable_shields
+
   self.player:set_shooting(is_firing)
 
-  self.player:update(dt, self.player_bullets)
+  self.player:update(dt, self.player_bullets, self.player_shields)
 
   -- Ensure that the player doesn't leave the bounds.
   self:constrainPlayerPosition()
@@ -292,6 +302,57 @@ function MainGameState:update(dt)
   -- Update enemies
 
   self:updateCamera(dt)
+
+  local remove_powerups = {}
+  for i,v in pairs(self.powerups) do
+    v.y = v.y + dt * 50
+
+    if math.test_box_intersection(self.player, v) then
+      v.picked_up = true
+      if v.power == "powerup_shield" then
+        self:build_station(ShieldBuilding)
+      elseif v.power == "powerup_repair" then
+        self:build_station(RepairBuilding)
+      elseif v.power == "powerup_energy" then
+        self.player.energy = self.player.max_energy
+      end
+    end
+
+    if v.y > 384 or v.picked_up then
+      table.insert(remove_powerups, i)
+    end
+  end
+
+  for i,v in pairs(remove_powerups) do
+    table.remove(self.powerups, remove_powerups[#remove_powerups-(i-1)])
+  end
+
+  POWERUP_TIME = POWERUP_TIME + dt
+  self.powerup_delay = self.powerup_delay - dt
+  if self.powerup_delay < 0 then
+    self.powerup_delay = POWERUP_DELAY
+    local powerup_types = {"powerup_shield", "powerup_repair", "powerup_energy"}
+    -- FOR BALANCING
+    for i=1,1 do
+      table.insert(powerup_types, "powerup_shield")
+    end
+    for i=1,1 do
+      table.insert(powerup_types, "powerup_repair")
+    end
+    for i=1,1 do
+      table.insert(powerup_types, "powerup_energy")
+    end
+
+
+    local powerup = 
+      { x = math.random(8,  self.current_level:get_total_width() - 8)
+      , y = 0
+      , w = 16
+      , h = 16
+      , picked_up = false
+      , power=  powerup_types[math.random(#powerup_types)]}
+    table.insert(self.powerups, powerup)
+  end
 
   -- Update GUI
   for _,v in pairs(self:get_all_gui_elements()) do
@@ -391,16 +452,21 @@ function MainGameState:build_weapon()
 end
 
 function MainGameState:keyreleased(key)
-  if key == '1' then
-    self.player.weapons.cannons.is_active = not self.player.weapons.cannons.is_active
-  elseif key == '2' then
-    self.player.weapons.rockets.is_active = not self.player.weapons.rockets.is_active
-  elseif key == '3' then
-    self.player.weapons.laser.is_active = not self.player.weapons.laser.is_active
-  elseif key == '4' then
-    self.player.weapons.blackhole.is_active = not self.player.weapons.blackhole.is_active
-  end
 
+  if key == 'q' then
+    local weapons = self.player.weapons
+    local previous = weapons.blackhole.is_active
+    previous, weapons.rockets.is_active = weapons.rockets.is_active, previous
+    previous, weapons.laser.is_active = weapons.laser.is_active, previous
+    previous, weapons.blackhole.is_active = weapons.blackhole.is_active, previous
+  elseif key == 'e' then
+    local weapons = self.player.weapons
+    local nw = weapons.rockets.is_active
+    nw, weapons.blackhole.is_active = weapons.blackhole.is_active, nw
+    nw, weapons.laser.is_active = weapons.laser.is_active, nw
+    nw, weapons.rockets.is_active = weapons.rockets.is_active, nw
+  end
+--[[
   if key == '5' then
     self:build_station(RepairBuilding)
   elseif key == '6' then
@@ -408,12 +474,14 @@ function MainGameState:keyreleased(key)
   elseif key == 'w' then
     self:build_weapon()
   end
-
+]]
+  --[[
   if key == 'q' then 
     self:pull_human()
   elseif key == 'e' then
     self:place_humans()
   end
+  ]]
 
   if self.debug then
     if key == 't' then
@@ -425,7 +493,7 @@ function MainGameState:keyreleased(key)
     if key == 'm' then
       -- Nuke the level
       for i=0, self.current_level:get_total_width(), 5 do
-        local bullet = Cannonball.new()
+        local bullet = Laserbeam.new()
         bullet.x, bullet.y = i, self.player.y - bullet.h
         table.insert(self.player_bullets, bullet)
       end

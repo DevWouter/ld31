@@ -1,4 +1,4 @@
-BUILDING_Y_POS = 324
+BUILDING_Y_POS = 384 - (32 + 16)
 
 Building = {}
 Building.__index = Building

@@ -51,9 +51,10 @@ end
 
 
 function Game:update(dt)
+  --[[
   if love.keyboard.isDown("lshift") then
     dt = dt * 10 
-  end
+  end]]
   self.active_state:update(dt)
 end
 

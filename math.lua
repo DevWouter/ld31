@@ -5,7 +5,9 @@ function math.test_box_intersection(b1, b2)
     if x >= b2.x and x < (b2.x + b2.w) then
       for y = b1.y, b1.y + (b1.h - 1) do
         if y >= b2.y and y < (b2.y + b2.h)then
-          return true
+          b1_center = math.get_center(b1)
+          b2_center = math.get_center(b2)
+          return true, math.get_distance(b1_center, b2_center)
         end
       end
     end

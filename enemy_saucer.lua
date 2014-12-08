@@ -22,8 +22,8 @@ function EnemySaucer:update(dt, bullet_list, level)
   if self.x < self.left_bound then
     self.x = self.left_bound
     self.vel_x = math.abs(self.vel_x)
-  elseif self.x > (self.right_bound - hw) then
-    self.x = self.right_bound - hw
+  elseif self.x > (self.right_bound - self.w) then
+    self.x = self.right_bound - self.w
     self.vel_x = -math.abs(self.vel_x)
   end
 
@@ -32,6 +32,7 @@ function EnemySaucer:update(dt, bullet_list, level)
     local bullet = Cannonball.new()
     bullet.x, bullet.y = self.x + (self.w / 2), self.y + bullet.h
     bullet.vel_y = 100 -- Fire down
+    bullet.damage = 2
     table.insert(bullet_list, bullet)
     self.delay_fire = self.reload_time
   end
@@ -46,4 +47,6 @@ function EnemySaucer:draw()
   local fill_color = {150, 150, 150}
   local line_color = {140, 140, 140}  
   draw_quad( self.x, self.y, self.w, self.h,line_color , fill_color)
+  love.graphics.setColor({255,255,255})
+  love.graphics.printf(self:health_str(), self.x, self.y, self.w, "center")
 end

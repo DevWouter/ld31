@@ -1,7 +1,7 @@
 require('./wave')
 
 SECTOR_WIDTH = 300
-SECTOR_Y = 362
+SECTOR_Y = 384 - 16
 
 Level = {}
 Level.__index = Level
@@ -33,7 +33,7 @@ function Level:get_sector_by_x(x)
 end
 
 function Level:wave_str()
-  return string.format("%i / %i", self.current_wave, #self.waves)
+  return string.format("%i/%i", self.current_wave, #self.waves)
 end
 
 require('sector')

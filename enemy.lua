@@ -16,10 +16,10 @@ function Enemy.new_type()
   function new_class:new()
     local newinst = { nil
       , x = 0
-      , y = ENEMY_Y_POS
+      , y = math.random(70, 250)
       , w = 10
       , h = 10
-      , health = 10
+      , health = 99.999
       , is_death = false
     }
     setmetatable( newinst, class_mt )
@@ -37,6 +37,10 @@ end
 
 function Enemy:getArea() 
   return {x = self.x, y = self.y, w = self.w, h = self.h}
+end
+
+function Enemy:health_str()
+  return string.format("%.0f", self.health)
 end
 
 function Enemy:update(dt, bullet_list)

@@ -18,7 +18,7 @@ function Bullet.new_type()
       , w = 4
       , h = 4
       , vel_y = -100 -- Fire up
-      , vel_x = 0 -- Fire up
+      , vel_x = 0 -- Fire straight
       , life_time = 5
       , damage = 5
       , damage_created = 0
@@ -28,7 +28,7 @@ function Bullet.new_type()
     return newinst
   end
 
-  return setmetatable(new_class, {__index = Enemy})
+  return setmetatable(new_class, {__index = Bullet})
 end
 
 function Bullet:on_create()
@@ -40,7 +40,18 @@ end
 function Bullet:apply_damage(target)
 end
 
+function Bullet:test_hit(target, dt)
+  if math.test_box_intersection(self, target) then
+    self:apply_damage(target, dt)
+  end
+end
+
 function Bullet:should_remove()
+  return self.life_time <= 0 
+end
+
+function Bullet:draw()
+  draw_quad(self.x - self.w/2, self.y - self.h/2, self.w, self.h, {0, 120, 255}, {0, 120, 255})
 end
 
 require('bullet_cannon')
